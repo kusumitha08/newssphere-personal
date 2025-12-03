@@ -10,6 +10,7 @@ interface NewsCardProps {
   index?: number;
   onSave?: (id: string) => void;
   onShare?: (id: string) => void;
+  onClick?: (article: NewsArticle) => void;
 }
 
 const sentimentConfig = {
@@ -25,7 +26,7 @@ const complexityColors = {
   expert: 'bg-accent/10 text-accent',
 };
 
-export function NewsCard({ article, index = 0, onSave, onShare }: NewsCardProps) {
+export function NewsCard({ article, index = 0, onSave, onShare, onClick }: NewsCardProps) {
   const SentimentIcon = sentimentConfig[article.sentiment].icon;
   
   const getCredibilityColor = (score: number) => {
@@ -49,7 +50,8 @@ export function NewsCard({ article, index = 0, onSave, onShare }: NewsCardProps)
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.05 }}
       whileHover={{ y: -4 }}
-      className="group relative bg-card rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 border border-border/50"
+      onClick={() => onClick?.(article)}
+      className="group relative bg-card rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 border border-border/50 cursor-pointer"
     >
       {article.isBreaking && (
         <div className="absolute top-3 left-3 z-10">
@@ -66,6 +68,9 @@ export function NewsCard({ article, index = 0, onSave, onShare }: NewsCardProps)
             src={article.imageUrl}
             alt={article.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
         </div>
@@ -127,7 +132,7 @@ export function NewsCard({ article, index = 0, onSave, onShare }: NewsCardProps)
               </Badge>
             ))}
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
             <Button
               variant="ghost"
               size="iconSm"
