@@ -110,13 +110,13 @@ const Index = () => {
 
         {/* Main Content */}
         <main className="flex-1 min-w-0">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
             {/* Search Bar */}
             <div className="mb-6">
               <SearchBar
                 onSearch={handleSearch}
                 isLoading={isLoading}
-                className="max-w-2xl"
+                className="w-full"
               />
             </div>
 
