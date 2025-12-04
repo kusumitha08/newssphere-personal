@@ -1,21 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { FeedTabs } from '@/components/news/FeedTabs';
 import { ContextModeSwitcher } from '@/components/news/ContextModeSwitcher';
 import { NewsCard } from '@/components/news/NewsCard';
-import { InterestDNA } from '@/components/news/InterestDNA';
-import { ReadingInsights } from '@/components/news/ReadingInsights';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
 import { SearchBar } from '@/components/news/SearchBar';
 import { CategoryFilter } from '@/components/news/CategoryFilter';
 import { ArticleDetail } from '@/components/news/ArticleDetail';
 import { NewsSkeletonGrid } from '@/components/news/NewsSkeleton';
+import { AudioPlayer } from '@/components/news/AudioPlayer';
 import { useNews } from '@/hooks/useNews';
-import { mockInterests, mockReadingStats } from '@/data/mockNews';
 import { FeedTab, ContextMode, NewsArticle } from '@/types/news';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const categories = ['all', 'general', 'business', 'technology', 'science', 'health', 'sports', 'entertainment'];
 
@@ -28,8 +27,29 @@ const Index = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
   const [isArticleOpen, setIsArticleOpen] = useState(false);
+  
+  // Audio player state
+  const [audioArticle, setAudioArticle] = useState<NewsArticle | null>(null);
+  const [audioSummary, setAudioSummary] = useState<string>('');
+  const [audioBase64, setAudioBase64] = useState<string | null>(null);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
 
   const { articles, isLoading, fetchNews, searchNews, filterByCategory } = useNews();
+
+  // Filter articles based on context mode
+  const displayedArticles = useMemo(() => {
+    if (contextMode === 'breaking') {
+      // Show only breaking/urgent news (negative sentiment or high credibility urgent topics)
+      return articles.filter(article => 
+        article.sentiment === 'negative' || 
+        article.sentiment === 'controversial' ||
+        article.topics.some(topic => 
+          ['Politics', 'Breaking', 'Urgent', 'Emergency'].includes(topic)
+        )
+      );
+    }
+    return articles;
+  }, [articles, contextMode]);
 
   // Check if user has completed onboarding
   useEffect(() => {
@@ -54,9 +74,55 @@ const Index = () => {
     await filterByCategory(category === 'all' ? '' : category);
   };
 
+  const generateAudioSummary = async (article: NewsArticle) => {
+    setAudioArticle(article);
+    setAudioSummary(article.summary);
+    setAudioBase64(null);
+    setIsGeneratingAudio(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('summarize-article', {
+        body: {
+          title: article.title,
+          summary: article.summary,
+          content: (article as any).content || '',
+          generateAudio: true,
+        },
+      });
+
+      if (error) throw error;
+
+      setAudioSummary(data.summary || article.summary);
+      setAudioBase64(data.audioBase64);
+      
+      if (!data.audioBase64) {
+        toast({
+          title: 'Audio unavailable',
+          description: 'Summary generated but audio could not be created.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error generating audio:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate audio summary. Please try again.',
+        variant: 'destructive',
+      });
+      setAudioArticle(null);
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+  };
+
   const handleArticleClick = (article: NewsArticle) => {
-    setSelectedArticle(article);
-    setIsArticleOpen(true);
+    if (contextMode === 'commute') {
+      // In commute mode, generate audio summary instead of opening detail
+      generateAudioSummary(article);
+    } else {
+      setSelectedArticle(article);
+      setIsArticleOpen(true);
+    }
   };
 
   const handleSaveArticle = (id: string) => {
@@ -75,6 +141,12 @@ const Index = () => {
         description: 'Article link copied to clipboard',
       });
     }
+  };
+
+  const handleCloseAudio = () => {
+    setAudioArticle(null);
+    setAudioBase64(null);
+    setAudioSummary('');
   };
 
   if (showOnboarding) {
@@ -127,17 +199,48 @@ const Index = () => {
               <ContextModeSwitcher mode={contextMode} onModeChange={setContextMode} />
             </div>
 
+            {/* Context Mode Banner */}
+            {contextMode === 'commute' && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 p-3 bg-secondary/10 border border-secondary/20 rounded-lg flex items-center gap-2"
+              >
+                <span className="text-secondary">🎧</span>
+                <p className="text-sm text-secondary">
+                  <strong>Commute Mode:</strong> Tap any article to listen to an audio summary
+                </p>
+              </motion.div>
+            )}
+
+            {contextMode === 'breaking' && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 p-3 bg-accent/10 border border-accent/20 rounded-lg flex items-center gap-2"
+              >
+                <span className="text-accent">⚡</span>
+                <p className="text-sm text-accent">
+                  <strong>Breaking Mode:</strong> Showing only urgent and breaking news
+                </p>
+              </motion.div>
+            )}
+
             {/* News Feed - Full Width */}
-            <div className="w-full">
+            <div className="w-full pb-20">
               {isLoading ? (
                 <NewsSkeletonGrid count={6} />
-              ) : articles.length === 0 ? (
+              ) : displayedArticles.length === 0 ? (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="text-center py-12"
                 >
-                  <p className="text-muted-foreground">No articles found. Try a different search or category.</p>
+                  <p className="text-muted-foreground">
+                    {contextMode === 'breaking' 
+                      ? 'No breaking news at the moment. Check back later.'
+                      : 'No articles found. Try a different search or category.'}
+                  </p>
                 </motion.div>
               ) : (
                 <motion.div
@@ -145,7 +248,7 @@ const Index = () => {
                   animate={{ opacity: 1 }}
                   className="grid grid-cols-1 md:grid-cols-2 gap-6"
                 >
-                  {articles.map((article, index) => (
+                  {displayedArticles.map((article, index) => (
                     <NewsCard
                       key={article.id}
                       article={article}
@@ -170,6 +273,17 @@ const Index = () => {
         onSave={handleSaveArticle}
         onShare={handleShareArticle}
       />
+
+      {/* Audio Player */}
+      {audioArticle && (
+        <AudioPlayer
+          audioBase64={audioBase64}
+          title={audioArticle.title}
+          summary={audioSummary}
+          isLoading={isGeneratingAudio}
+          onClose={handleCloseAudio}
+        />
+      )}
     </div>
   );
 };
