@@ -137,59 +137,36 @@ const Index = () => {
               <ContextModeSwitcher mode={contextMode} onModeChange={setContextMode} />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* News Feed */}
-              <div className="lg:col-span-2">
-                {isLoading ? (
-                  <NewsSkeletonGrid count={6} />
-                ) : articles.length === 0 ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-center py-12"
-                  >
-                    <p className="text-muted-foreground">No articles found. Try a different search or category.</p>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                  >
-                    {articles.map((article, index) => (
-                      <NewsCard
-                        key={article.id}
-                        article={article}
-                        index={index}
-                        onSave={handleSaveArticle}
-                        onShare={handleShareArticle}
-                        onClick={handleArticleClick}
-                      />
-                    ))}
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Sidebar Content */}
-              <div className="space-y-6">
-                {/* Interest DNA */}
+            {/* News Feed - Full Width */}
+            <div className="w-full">
+              {isLoading ? (
+                <NewsSkeletonGrid count={6} />
+              ) : articles.length === 0 ? (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center py-12"
                 >
-                  <InterestDNA interests={mockInterests} />
+                  <p className="text-muted-foreground">No articles found. Try a different search or category.</p>
                 </motion.div>
-
-                {/* Reading Insights */}
+              ) : (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-6"
                 >
-                  <ReadingInsights stats={mockReadingStats} />
+                  {articles.map((article, index) => (
+                    <NewsCard
+                      key={article.id}
+                      article={article}
+                      index={index}
+                      onSave={handleSaveArticle}
+                      onShare={handleShareArticle}
+                      onClick={handleArticleClick}
+                    />
+                  ))}
                 </motion.div>
-              </div>
+              )}
             </div>
           </div>
         </main>
