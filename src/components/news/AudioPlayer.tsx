@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, X, Volume2, Loader2 } from 'lucide-react';
+import { Play, Pause, X, Volume2, Loader2, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AudioPlayerProps {
@@ -9,9 +9,10 @@ interface AudioPlayerProps {
   summary: string;
   isLoading: boolean;
   onClose: () => void;
+  articleUrl?: string;
 }
 
-export function AudioPlayer({ audioBase64, title, summary, isLoading, onClose }: AudioPlayerProps) {
+export function AudioPlayer({ audioBase64, title, summary, isLoading, onClose, articleUrl }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -104,6 +105,17 @@ export function AudioPlayer({ audioBase64, title, summary, isLoading, onClose }:
             <h4 className="text-sm font-medium text-foreground truncate">{title}</h4>
             <p className="text-xs text-muted-foreground truncate">{summary}</p>
           </div>
+
+          {/* Read Article button */}
+          {articleUrl && (
+            <button
+              onClick={() => window.open(articleUrl, '_blank')}
+              className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full hover:bg-primary/20 transition-colors text-sm font-medium"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Read Article
+            </button>
+          )}
 
           {/* Close button */}
           <button

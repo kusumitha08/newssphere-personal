@@ -1,15 +1,27 @@
 import { motion } from 'framer-motion';
-import { Search, Bell, Settings, Menu, Globe } from 'lucide-react';
+import { Search, Bell, Settings, Menu, Globe, LogIn, LogOut, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
   onMenuClick?: () => void;
   onSettingsClick?: () => void;
   onSearchClick?: () => void;
+  user?: { email?: string } | null;
+  onSignOut?: () => void;
 }
 
-export function Header({ onMenuClick, onSettingsClick, onSearchClick }: HeaderProps) {
+export function Header({ onMenuClick, onSettingsClick, onSearchClick, user, onSignOut }: HeaderProps) {
+  const navigate = useNavigate();
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -20 }}
@@ -66,11 +78,43 @@ export function Header({ onMenuClick, onSettingsClick, onSearchClick }: HeaderPr
               <Settings className="w-5 h-5" />
             </Button>
             
-            <Button variant="ghost" size="icon" className="ml-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground font-medium text-sm">
-                JS
-              </div>
-            </Button>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="ml-2">
+                    <div className="w-8 h-8 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground font-medium text-sm">
+                      {user.email?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium text-foreground">Account</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/')}>
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onSignOut} className="text-destructive focus:text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="ml-2"
+                onClick={() => navigate('/auth')}
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Login
+              </Button>
+            )}
           </div>
         </div>
       </div>

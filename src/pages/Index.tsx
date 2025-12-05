@@ -12,14 +12,16 @@ import { ArticleDetail } from '@/components/news/ArticleDetail';
 import { NewsSkeletonGrid } from '@/components/news/NewsSkeleton';
 import { AudioPlayer } from '@/components/news/AudioPlayer';
 import { useNews } from '@/hooks/useNews';
+import { useAuth } from '@/hooks/useAuth';
 import { FeedTab, ContextMode, NewsArticle } from '@/types/news';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-const categories = ['all', 'general', 'business', 'technology', 'science', 'health', 'sports', 'entertainment'];
+const allCategories = ['all', 'general', 'business', 'technology', 'science', 'health', 'sports', 'entertainment'];
 
 const Index = () => {
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const { user, profile, isLoading: authLoading, signOut } = useAuth();
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<FeedTab>('forYou');
   const [contextMode, setContextMode] = useState<ContextMode>('morning');
@@ -36,6 +38,24 @@ const Index = () => {
 
   const { articles, isLoading, fetchNews, searchNews, filterByCategory } = useNews();
 
+  // Get user's selected categories
+  const userCategories = useMemo(() => {
+    if (profile?.interests && profile.interests.length > 0) {
+      return ['all', ...profile.interests];
+    }
+    // Check localStorage for non-logged-in users
+    const savedTopics = localStorage.getItem('newssphere_topics');
+    if (savedTopics) {
+      try {
+        const parsed = JSON.parse(savedTopics);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return ['all', ...parsed];
+        }
+      } catch (e) {}
+    }
+    return allCategories;
+  }, [profile]);
+
   // Filter articles based on context mode
   const displayedArticles = useMemo(() => {
     if (contextMode === 'breaking') {
@@ -51,13 +71,15 @@ const Index = () => {
     return articles;
   }, [articles, contextMode]);
 
-  // Check if user has completed onboarding
+  // Check if user has completed onboarding (only for non-logged-in users)
   useEffect(() => {
-    const hasOnboarded = localStorage.getItem('newssphere_onboarded');
-    if (hasOnboarded) {
-      setShowOnboarding(false);
+    if (!authLoading && !user) {
+      const hasOnboarded = localStorage.getItem('newssphere_onboarded');
+      if (!hasOnboarded) {
+        setShowOnboarding(true);
+      }
     }
-  }, []);
+  }, [authLoading, user]);
 
   const handleOnboardingComplete = (topics: string[]) => {
     localStorage.setItem('newssphere_onboarded', 'true');
@@ -72,6 +94,15 @@ const Index = () => {
   const handleCategoryChange = async (category: string) => {
     setActiveCategory(category);
     await filterByCategory(category === 'all' ? '' : category);
+  };
+
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to sign out', variant: 'destructive' });
+    } else {
+      toast({ title: 'Signed out', description: 'You have been signed out successfully' });
+    }
   };
 
   const generateAudioSummary = async (article: NewsArticle) => {
@@ -159,6 +190,8 @@ const Index = () => {
         onMenuClick={() => setSidebarOpen(true)}
         onSettingsClick={() => {}}
         onSearchClick={() => {}}
+        user={user}
+        onSignOut={handleSignOut}
       />
 
       <div className="flex">
@@ -182,10 +215,10 @@ const Index = () => {
               />
             </div>
 
-            {/* Category Filter */}
+            {/* Category Filter - Only show user's selected categories */}
             <div className="mb-6">
               <CategoryFilter
-                categories={categories}
+                categories={userCategories}
                 activeCategory={activeCategory}
                 onCategoryChange={handleCategoryChange}
               />
@@ -282,6 +315,7 @@ const Index = () => {
           summary={audioSummary}
           isLoading={isGeneratingAudio}
           onClose={handleCloseAudio}
+          articleUrl={(audioArticle as any).url}
         />
       )}
     </div>
