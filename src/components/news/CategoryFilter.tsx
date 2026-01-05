@@ -16,6 +16,18 @@ const categoryEmojis: Record<string, string> = {
   health: '🏥',
   sports: '⚽',
   entertainment: '🎬',
+  ai: '🤖',
+  climate: '🌍',
+  food: '🍔',
+  fashion: '👗',
+  politics: '🏛️',
+  travel: '✈️',
+  culture: '🎭',
+  crypto: '₿',
+  space: '🚀',
+  gaming: '🎮',
+  education: '📚',
+  finance: '📈',
 };
 
 export function CategoryFilter({ categories, activeCategory, onCategoryChange }: CategoryFilterProps) {

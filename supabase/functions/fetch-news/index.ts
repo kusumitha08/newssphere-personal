@@ -16,6 +16,31 @@ interface NewsAPIArticle {
   content: string | null;
 }
 
+// Map custom categories to NewsAPI supported categories or search keywords
+const categoryMapping: Record<string, { type: 'category' | 'search', value: string }> = {
+  // NewsAPI supported categories
+  'general': { type: 'category', value: 'general' },
+  'business': { type: 'category', value: 'business' },
+  'technology': { type: 'category', value: 'technology' },
+  'science': { type: 'category', value: 'science' },
+  'health': { type: 'category', value: 'health' },
+  'sports': { type: 'category', value: 'sports' },
+  'entertainment': { type: 'category', value: 'entertainment' },
+  // Custom categories - use search keywords
+  'ai': { type: 'search', value: 'artificial intelligence AI machine learning' },
+  'climate': { type: 'search', value: 'climate change global warming environment' },
+  'food': { type: 'search', value: 'food cooking recipes cuisine restaurant' },
+  'fashion': { type: 'search', value: 'fashion style clothing designer trends' },
+  'politics': { type: 'search', value: 'politics government election parliament congress' },
+  'travel': { type: 'search', value: 'travel tourism vacation destination flights' },
+  'culture': { type: 'search', value: 'culture arts museum heritage traditions' },
+  'crypto': { type: 'search', value: 'cryptocurrency bitcoin ethereum blockchain crypto' },
+  'space': { type: 'search', value: 'space NASA astronomy rocket satellite mars' },
+  'gaming': { type: 'search', value: 'gaming video games esports playstation xbox' },
+  'education': { type: 'search', value: 'education school university college learning' },
+  'finance': { type: 'search', value: 'finance stocks market investment trading economy' },
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -31,6 +56,8 @@ serve(async (req) => {
     const { query, category, countries = ['us', 'in'], pageSize = 20, page = 1 } = await req.json();
     
     let allArticles: NewsAPIArticle[] = [];
+    const lowerCategory = category?.toLowerCase() || '';
+    const categoryConfig = categoryMapping[lowerCategory];
     
     if (query) {
       // Search endpoint - search across all languages
@@ -45,15 +72,32 @@ serve(async (req) => {
         const data = await response.json();
         allArticles = data.articles || [];
       }
+    } else if (categoryConfig?.type === 'search') {
+      // Use "everything" endpoint with keywords for custom categories
+      const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(categoryConfig.value)}&pageSize=${pageSize}&page=${page}&sortBy=publishedAt&language=en`;
+      console.log(`Fetching ${category} news using search:`, url);
+      
+      const response = await fetch(url, {
+        headers: { 'X-Api-Key': NEWSAPI_KEY },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        allArticles = (data.articles || []).map((article: NewsAPIArticle) => ({
+          ...article,
+          country: 'global',
+        }));
+      }
     } else {
       // Fetch top headlines from multiple countries (US and India)
       const countryList = Array.isArray(countries) ? countries : ['us', 'in'];
       const articlesPerCountry = Math.ceil(pageSize / countryList.length);
+      const apiCategory = categoryConfig?.value || lowerCategory;
       
       const fetchPromises = countryList.map(async (country: string) => {
         let url = `https://newsapi.org/v2/top-headlines?country=${country}&pageSize=${articlesPerCountry}&page=${page}`;
-        if (category && category !== 'all') {
-          url += `&category=${category}`;
+        if (apiCategory && apiCategory !== 'all') {
+          url += `&category=${apiCategory}`;
         }
         console.log(`Fetching news from ${country}:`, url);
         
