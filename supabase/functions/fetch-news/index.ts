@@ -28,39 +28,58 @@ serve(async (req) => {
       throw new Error('NEWSAPI_KEY is not configured');
     }
 
-    const { query, category, country = 'us', pageSize = 20, page = 1 } = await req.json();
+    const { query, category, countries = ['us', 'in'], pageSize = 20, page = 1 } = await req.json();
     
-    let url: string;
+    let allArticles: NewsAPIArticle[] = [];
     
     if (query) {
-      // Search endpoint
-      url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&pageSize=${pageSize}&page=${page}&sortBy=publishedAt&language=en`;
-    } else {
-      // Top headlines endpoint
-      url = `https://newsapi.org/v2/top-headlines?country=${country}&pageSize=${pageSize}&page=${page}`;
-      if (category && category !== 'all') {
-        url += `&category=${category}`;
+      // Search endpoint - search across all languages
+      const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&pageSize=${pageSize}&page=${page}&sortBy=publishedAt`;
+      console.log('Fetching search results from:', url);
+      
+      const response = await fetch(url, {
+        headers: { 'X-Api-Key': NEWSAPI_KEY },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        allArticles = data.articles || [];
       }
+    } else {
+      // Fetch top headlines from multiple countries (US and India)
+      const countryList = Array.isArray(countries) ? countries : ['us', 'in'];
+      const articlesPerCountry = Math.ceil(pageSize / countryList.length);
+      
+      const fetchPromises = countryList.map(async (country: string) => {
+        let url = `https://newsapi.org/v2/top-headlines?country=${country}&pageSize=${articlesPerCountry}&page=${page}`;
+        if (category && category !== 'all') {
+          url += `&category=${category}`;
+        }
+        console.log(`Fetching news from ${country}:`, url);
+        
+        const response = await fetch(url, {
+          headers: { 'X-Api-Key': NEWSAPI_KEY },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          return (data.articles || []).map((article: NewsAPIArticle) => ({
+            ...article,
+            country,
+          }));
+        }
+        return [];
+      });
+      
+      const results = await Promise.all(fetchPromises);
+      allArticles = results.flat();
+      
+      // Shuffle articles to mix US and Indian news
+      allArticles = allArticles.sort(() => Math.random() - 0.5);
     }
 
-    console.log('Fetching news from:', url);
-
-    const response = await fetch(url, {
-      headers: {
-        'X-Api-Key': NEWSAPI_KEY,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('NewsAPI error:', response.status, errorText);
-      throw new Error(`NewsAPI error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
     // Transform articles to our format
-    const articles = data.articles?.map((article: NewsAPIArticle, index: number) => ({
+    const articles = allArticles.map((article: NewsAPIArticle & { country?: string }, index: number) => ({
       id: `${Date.now()}-${index}`,
       title: article.title || 'Untitled',
       summary: article.description || 'No description available.',
@@ -76,13 +95,14 @@ serve(async (req) => {
       credibilityScore: getCredibilityScore(article.source?.name || ''),
       category: category || 'general',
       topics: extractTopics(article.title + ' ' + (article.description || '')),
-    })) || [];
+      country: article.country || 'us',
+    }));
 
-    console.log(`Fetched ${articles.length} articles`);
+    console.log(`Fetched ${articles.length} articles from multiple countries`);
 
     return new Response(JSON.stringify({ 
       articles,
-      totalResults: data.totalResults || 0,
+      totalResults: articles.length,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -122,8 +142,8 @@ function getSentiment(text: string): 'positive' | 'negative' | 'neutral' | 'cont
 }
 
 function getCredibilityScore(sourceName: string): number {
-  const highCredibility = ['reuters', 'associated press', 'bbc', 'npr', 'the new york times', 'the washington post', 'the guardian', 'financial times', 'the economist', 'wall street journal'];
-  const mediumCredibility = ['cnn', 'abc news', 'cbs news', 'nbc news', 'usa today', 'time', 'newsweek', 'politico'];
+  const highCredibility = ['reuters', 'associated press', 'bbc', 'npr', 'the new york times', 'the washington post', 'the guardian', 'financial times', 'the economist', 'wall street journal', 'the hindu', 'hindustan times', 'indian express', 'ndtv', 'the times of india', 'mint', 'business standard', 'economic times'];
+  const mediumCredibility = ['cnn', 'abc news', 'cbs news', 'nbc news', 'usa today', 'time', 'newsweek', 'politico', 'india today', 'news18', 'zee news', 'republic', 'firstpost', 'scroll', 'the quint', 'the wire', 'livemint'];
   
   const lowerSource = sourceName.toLowerCase();
   
