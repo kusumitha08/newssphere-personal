@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Search, Bell, Settings, Menu, Globe, LogIn, LogOut, User } from 'lucide-react';
+import { Search, Bell, Settings, Menu, Globe, LogIn, LogOut, User, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -96,6 +96,10 @@ export function Header({ onMenuClick, onSettingsClick, onSearchClick, user, onSi
                   <DropdownMenuItem onClick={() => navigate('/')}>
                     <User className="mr-2 h-4 w-4" />
                     Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/history')}>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Reading History
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={onSignOut} className="text-destructive focus:text-destructive">
