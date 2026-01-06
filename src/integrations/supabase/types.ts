@@ -38,6 +38,42 @@ export type Database = {
         }
         Relationships: []
       }
+      reading_history: {
+        Row: {
+          article_category: string | null
+          article_id: string
+          article_image_url: string | null
+          article_source: string | null
+          article_title: string
+          id: string
+          read_at: string
+          read_time_minutes: number | null
+          user_id: string
+        }
+        Insert: {
+          article_category?: string | null
+          article_id: string
+          article_image_url?: string | null
+          article_source?: string | null
+          article_title: string
+          id?: string
+          read_at?: string
+          read_time_minutes?: number | null
+          user_id: string
+        }
+        Update: {
+          article_category?: string | null
+          article_id?: string
+          article_image_url?: string | null
+          article_source?: string | null
+          article_title?: string
+          id?: string
+          read_at?: string
+          read_time_minutes?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

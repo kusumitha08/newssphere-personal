@@ -11,8 +11,11 @@ import { CategoryFilter } from '@/components/news/CategoryFilter';
 import { ArticleDetail } from '@/components/news/ArticleDetail';
 import { NewsSkeletonGrid } from '@/components/news/NewsSkeleton';
 import { AudioPlayer } from '@/components/news/AudioPlayer';
+import { ReadingInsights } from '@/components/news/ReadingInsights';
+import { ReadingHistory } from '@/components/news/ReadingHistory';
 import { useNews } from '@/hooks/useNews';
 import { useAuth } from '@/hooks/useAuth';
+import { useReadingHistory } from '@/hooks/useReadingHistory';
 import { FeedTab, ContextMode, NewsArticle } from '@/types/news';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,6 +40,7 @@ const Index = () => {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
 
   const { articles, isLoading, fetchNews, searchNews, filterByCategory } = useNews();
+  const { history, stats, isLoading: historyLoading, trackArticleRead, clearHistory } = useReadingHistory();
 
   // Get user's selected categories
   const userCategories = useMemo(() => {
@@ -146,7 +150,10 @@ const Index = () => {
     }
   };
 
-  const handleArticleClick = (article: NewsArticle) => {
+  const handleArticleClick = async (article: NewsArticle) => {
+    // Track the article read
+    await trackArticleRead(article);
+    
     if (contextMode === 'commute') {
       // In commute mode, generate audio summary instead of opening detail
       generateAudioSummary(article);
@@ -259,39 +266,54 @@ const Index = () => {
               </motion.div>
             )}
 
-            {/* News Feed - Full Width */}
-            <div className="w-full pb-20">
-              {isLoading ? (
-                <NewsSkeletonGrid count={6} />
-              ) : displayedArticles.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-12"
-                >
-                  <p className="text-muted-foreground">
-                    {contextMode === 'breaking' 
-                      ? 'No breaking news at the moment. Check back later.'
-                      : 'No articles found. Try a different search or category.'}
-                  </p>
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-6"
-                >
-                  {displayedArticles.map((article, index) => (
-                    <NewsCard
-                      key={article.id}
-                      article={article}
-                      index={index}
-                      onSave={handleSaveArticle}
-                      onShare={handleShareArticle}
-                      onClick={handleArticleClick}
-                    />
-                  ))}
-                </motion.div>
+            {/* Main Content Grid */}
+            <div className="flex gap-6 pb-20">
+              {/* News Feed */}
+              <div className="flex-1 min-w-0">
+                {isLoading ? (
+                  <NewsSkeletonGrid count={6} />
+                ) : displayedArticles.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-12"
+                  >
+                    <p className="text-muted-foreground">
+                      {contextMode === 'breaking' 
+                        ? 'No breaking news at the moment. Check back later.'
+                        : 'No articles found. Try a different search or category.'}
+                    </p>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                  >
+                    {displayedArticles.map((article, index) => (
+                      <NewsCard
+                        key={article.id}
+                        article={article}
+                        index={index}
+                        onSave={handleSaveArticle}
+                        onShare={handleShareArticle}
+                        onClick={handleArticleClick}
+                      />
+                    ))}
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Reading Stats Sidebar - Only show for logged-in users on larger screens */}
+              {user && (
+                <div className="hidden xl:block w-80 flex-shrink-0 space-y-6">
+                  {stats && <ReadingInsights stats={stats} />}
+                  <ReadingHistory 
+                    history={history} 
+                    onClear={clearHistory} 
+                    isLoading={historyLoading} 
+                  />
+                </div>
               )}
             </div>
           </div>
